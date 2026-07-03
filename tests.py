@@ -103,9 +103,9 @@ class TestSessionFilters(unittest.TestCase):
         self.assertFalse(is_asian_range(_et(10, 0)))
 
     # ── Gap / Dead Zones ──────────────────────────────────────────────────────
-    def test_london_gap_blocked(self):
-        """03:15 ET is the London Open gap."""
-        self.assertTrue(is_gap_time(_et(3, 15)))
+    def test_london_us_gap_blocked(self):
+        """15:15 ET is the London/US gap."""
+        self.assertTrue(is_gap_time(_et(15, 15)))
 
     def test_ny_gap_blocked(self):
         """09:15 ET is the NY Open gap."""

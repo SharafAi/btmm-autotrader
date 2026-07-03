@@ -76,10 +76,10 @@ ACCUM_GAP_MIN_CANDLES = 2        # 30 min minimum (Condition 4)
 ACCUM_GAP_MAX_CANDLES = 8        # 2-hour extended max (ideal ≤ 6)
 
 # ── BLOCKED / DEAD ZONES — no new entries ────────────────────────────────────
-LONDON_GAP_START = time(3, 0)
-LONDON_GAP_END   = time(3, 30)
-NY_GAP_START     = time(9, 0)
-NY_GAP_END       = time(9, 30)
+LONDON_US_GAP_START = time(15, 0)
+LONDON_US_GAP_END   = time(15, 30)
+NY_OPEN_GAP_START   = time(9, 0)
+NY_OPEN_GAP_END     = time(9, 30)
 DHARMA_GAP_START = time(17, 0)   # Dharma / Dead Zone
 DHARMA_GAP_END   = time(20, 0)
 
@@ -142,14 +142,14 @@ def is_asian_range(dt):
 def is_gap_time(dt):
     """
     True if dt is inside ANY blocked dead-zone:
-      • London Open Gap  03:00–03:30 ET
+      • London/US Gap    15:00–15:30 ET
       • NY Open Gap      09:00–09:30 ET
       • Dharma/Dead Zone 17:00–20:00 ET
     """
     t = dt.time()
-    if LONDON_GAP_START <= t < LONDON_GAP_END:
+    if LONDON_US_GAP_START <= t < LONDON_US_GAP_END:
         return True
-    if NY_GAP_START <= t < NY_GAP_END:
+    if NY_OPEN_GAP_START <= t < NY_OPEN_GAP_END:
         return True
     if DHARMA_GAP_START <= t < DHARMA_GAP_END:
         return True

@@ -10,7 +10,8 @@ from patterns import (detect_m_top, detect_w_bottom, detect_manipulation,
                       detect_candlestick_confirmation, get_session_info,
                       is_btmm_session, detect_asian_range, count_stop_hunt_vectors,
                       get_prev_day_levels, get_session_high_low,
-                      get_blue_tracer, is_near_waypoint, get_ny_time)
+                      get_blue_tracer, is_near_waypoint, get_ny_time,
+                      detect_mw_pattern)
 from cycles import detect_cycle_level, get_cycle_emoji, get_day_of_week_note
 
 _symbol_traded_today = {}
@@ -223,6 +224,8 @@ def check_entry(candles_ltf, candles_htf, symbol, mode='btmm', candles_daily=Non
         session      = get_session_info()
 
         ar_h, ar_l, ar_pips, ar_valid = detect_asian_range(candles_ltf, symbol)
+        if not ar_valid:
+            print(f"   [{symbol}] ❌ AR invalid (>50p)"); return null
         vector_count, hunt_dir        = count_stop_hunt_vectors(candles_ltf, ar_h, ar_l)
         session_high, session_low     = get_session_high_low(candles_ltf)
         prev_high, prev_low           = get_prev_day_levels(candles_ltf)
@@ -251,7 +254,13 @@ def check_entry(candles_ltf, candles_htf, symbol, mode='btmm', candles_daily=Non
 
         can_enter_gap, gap_mins, gap_status, gap_candles = \
             _check_accumulation_gap(symbol, len(candles_ltf))
-        order_type, pullback_pct, shift_pct = analyze_shift_candle(candles_ltf, adr, pip)
+        
+        mw_signal = detect_mw_pattern(candles_ltf, ar_h, ar_l, prev_high, prev_low, emas_ltf, symbol)
+        if mw_signal:
+            order_type = 'market' if mw_signal['entry_type'] == 'MARKET_OPEN' else 'pullback_50'
+            pullback_pct = 0 if order_type == 'market' else 50
+        else:
+            order_type, pullback_pct, shift_pct = analyze_shift_candle(candles_ltf, adr, pip)
 
         straightaway_buy  = detect_straightaway(candles_ltf, emas_ltf, 'BUY')
         straightaway_sell = detect_straightaway(candles_ltf, emas_ltf, 'SELL')
@@ -313,8 +322,7 @@ def check_entry(candles_ltf, candles_htf, symbol, mode='btmm', candles_daily=Non
         ar_penalty = 0 if ar_valid else -2
 
         # ── BUY ──────────────────────────────────────────────────────────────
-        buy_signal = (w_pattern or hunt_dir=='bullish' or sz_dir=='bullish' or
-                      bullish_div or straightaway_buy or mayo_buy)
+        buy_signal = mw_signal and mw_signal['signal'] == 'W_BOTTOM'
         if can_buy and buy_signal:
             pat_type  = classify_pattern_type(candles_ltf, emas_ltf, 'BUY')
             nm_ok, _  = check_near_miss(candles_ltf, symbol, 'BUY', pip)
@@ -349,12 +357,11 @@ def check_entry(candles_ltf, candles_htf, symbol, mode='btmm', candles_daily=Non
                 print(f"   [{symbol}] ✅ BUY Score:{score} Type:{pat_type} Order:{order_type}")
             else:
                 print(f"   [{symbol}] ⚠️ BUY score {score} < 6")
-        elif not can_buy and w_pattern:
-            print(f"   [{symbol}] ⏳ W — HTF not aligned ({ema_trend_htf})")
+        elif not can_buy and mw_signal and mw_signal['signal'] == 'W_BOTTOM':
+            print(f"   [{symbol}] ⏳ W_BOTTOM — HTF not aligned ({ema_trend_htf})")
 
         # ── SELL ─────────────────────────────────────────────────────────────
-        sell_signal = (m_pattern or hunt_dir=='bearish' or sz_dir=='bearish' or
-                       bearish_div or straightaway_sell or mayo_sell)
+        sell_signal = mw_signal and mw_signal['signal'] == 'M_TOP'
         if can_sell and sell_signal and result['type'] is None:
             pat_type  = classify_pattern_type(candles_ltf, emas_ltf, 'SELL')
             nm_ok, _  = check_near_miss(candles_ltf, symbol, 'SELL', pip)
@@ -389,8 +396,8 @@ def check_entry(candles_ltf, candles_htf, symbol, mode='btmm', candles_daily=Non
                 print(f"   [{symbol}] ✅ SELL Score:{score} Type:{pat_type} Order:{order_type}")
             else:
                 print(f"   [{symbol}] ⚠️ SELL score {score} < 6")
-        elif not can_sell and m_pattern:
-            print(f"   [{symbol}] ⏳ M — HTF not aligned ({ema_trend_htf})")
+        elif not can_sell and mw_signal and mw_signal['signal'] == 'M_TOP':
+            print(f"   [{symbol}] ⏳ M_TOP — HTF not aligned ({ema_trend_htf})")
 
         return result
     except Exception as e:

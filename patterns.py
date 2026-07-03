@@ -46,7 +46,7 @@ def get_session_info():
     is_gap         = (_t(7,30) <= t < _t(8,0)) or (_t(12,30) <= t < _t(13,0))
     is_dharma      = _t(17,0) <= t < _t(20,30)
     is_lull        = _t(18,0) <= t < _t(20,30)
-    is_brinks      = (_t(8,43) <= t <= _t(8,47)) or (_t(13,43) <= t <= _t(13,47))
+    is_brinks      = (_t(3,43) <= t <= _t(3,47)) or (_t(9,43) <= t <= _t(9,47))
     is_friday_exit = (ny.weekday() == 4 and t >= _t(16,0))
     is_vector_window = _t(1,0) <= t < _t(4,0)   # Most common vector window
 
@@ -439,9 +439,8 @@ def _check_w_bottom(scan_df, asian_low, pdl, e13, pip_size):
     inducement = (boundary - leg1_extreme) / pip_size
     if not (STOP_HUNT_MIN_PIPS <= inducement <= STOP_HUNT_MAX_PIPS): return None
 
-    outside_df = scan_df[scan_df['low'] < boundary]
     # Use swipe-based count from count_stop_hunt_vectors helper
-    push_count = _count_pushes(outside_df, 'DOWN', pip_size)
+    push_count, _ = count_stop_hunt_vectors(scan_df, boundary if boundary == max(asian_low, pdl if pdl else asian_low) else 10000, boundary)
     if push_count < STOP_HUNT_PUSHES: return None
 
     gap_candles = len(scan_df) - 1 - leg1_idx
@@ -475,8 +474,7 @@ def _check_m_top(scan_df, asian_high, pdh, e13, pip_size):
     inducement = (leg1_extreme - boundary) / pip_size
     if not (STOP_HUNT_MIN_PIPS <= inducement <= STOP_HUNT_MAX_PIPS): return None
 
-    outside_df = scan_df[scan_df['high'] > boundary]
-    push_count = _count_pushes(outside_df, 'UP', pip_size)
+    push_count, _ = count_stop_hunt_vectors(scan_df, boundary, boundary if boundary == min(asian_high, pdh if pdh else asian_high) else 0)
     if push_count < STOP_HUNT_PUSHES: return None
 
     gap_candles = len(scan_df) - 1 - leg1_idx
@@ -501,14 +499,6 @@ def _check_m_top(scan_df, asian_high, pdh, e13, pip_size):
         'patterns':      patterns,
     }
 
-
-def _count_pushes(outside_df, direction, pip_size):
-    """Simple swipe counter for candles already outside the AR boundary."""
-    if outside_df.empty:
-        return 0
-    # Each contiguous block of candles outside = 1 swipe
-    # Already filtered to outside-boundary candles; just count them as ≥1
-    return min(len(outside_df), 5)
 
 
 # ── W/M ON RSI (TDI-based) ────────────────────────────────────────────────────

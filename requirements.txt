@@ -1,0 +1,7 @@
+metaapi-cloud-sdk
+pandas
+numpy
+pytz
+requests
+python-dotenv
+pytest

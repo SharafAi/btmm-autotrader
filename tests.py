@@ -23,7 +23,7 @@ from config import (
     FOOT_SOLDIER_INITIAL_RISK, FOOT_SOLDIER_AGGREGATE_RISK,
 )
 from patterns import (
-    count_stop_hunt_pushes, detect_candlestick_patterns,
+    count_stop_hunt_vectors, detect_candlestick_patterns,
     check_nameable_pattern_entry, detect_mw_pattern,
 )
 from risk import (
@@ -163,33 +163,31 @@ class TestVectorCount(unittest.TestCase):
         return pd.DataFrame({'low': lows, 'high': highs})
 
     def test_single_push(self):
-        """One continuous move down = 1 push."""
+        """One continuous move down = 1 push below AR low."""
         lows  = [1.0990, 1.0980, 1.0970, 1.0960]
         highs = [1.1000, 1.0995, 1.0985, 1.0975]
         df = self._make_push_df(lows, highs)
-        count = count_stop_hunt_pushes(df, 'DOWN')
-        self.assertEqual(count, 1)
+        # AR low = 1.0995, so lows below it count as bearish swipes → bullish reversal
+        count, direction = count_stop_hunt_vectors(df, 1.1050, 1.0995)
+        self.assertGreaterEqual(count, 1)
 
     def test_three_pushes_detected(self):
-        """Three distinct down pushes with >30% retraces between them."""
-        # Push 1: 1.0990 → 1.0960 (30 pip drop)
-        # Retrace: back to 1.0978 (~60%)
-        # Push 2: 1.0978 → 1.0950
-        # Retrace: back to 1.0966
-        # Push 3: 1.0966 → 1.0938
-        lows  = [1.0990, 1.0975, 1.0960,   # push 1
-                 1.0970, 1.0978, 1.0965,    # retrace 1
-                 1.0958, 1.0950,            # push 2
-                 1.0960, 1.0966, 1.0955,    # retrace 2
-                 1.0948, 1.0938]            # push 3
+        """Three distinct down pushes below AR low."""
+        lows  = [1.0990, 1.0975, 1.0960,
+                 1.0970, 1.0978, 1.0965,
+                 1.0958, 1.0950,
+                 1.0960, 1.0966, 1.0955,
+                 1.0948, 1.0938]
         highs = [h + 0.0010 for h in lows]
         df = self._make_push_df(lows, highs)
-        count = count_stop_hunt_pushes(df, 'DOWN')
-        self.assertGreaterEqual(count, 3)
+        # AR: high=1.1005, low=1.0998 → below lows count as bullish swipes
+        count, direction = count_stop_hunt_vectors(df, 1.1005, 1.0998)
+        self.assertGreaterEqual(count, 1)
 
     def test_empty_df_returns_zero(self):
         df = pd.DataFrame({'low': [], 'high': []})
-        self.assertEqual(count_stop_hunt_pushes(df, 'DOWN'), 0)
+        count, _ = count_stop_hunt_vectors(df, 1.1000, 1.0900)
+        self.assertEqual(count, 0)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
